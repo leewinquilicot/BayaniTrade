@@ -12,50 +12,45 @@ const Navbar = ({ onGetStarted }) => {
   };
 
   return (
-    <nav className="fixed w-full z-50 bg-white/95 backdrop-blur-sm shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="fixed w-full z-50 bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">🌾</span>
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
-              BayaniTrade
-            </span>
+          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <svg className="w-7 h-7 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22V12" />
+              <path d="M12 12C12 12 7 10 5 6c3 0 5.5 1.5 7 4z" fill="currentColor" stroke="none" />
+              <path d="M12 12C12 12 17 10 19 6c-3 0-5.5 1.5-7 4z" fill="currentColor" stroke="none" />
+              <path d="M12 16C12 16 8 14.5 6 11c3 0 5 1.5 6 3z" fill="currentColor" stroke="none" opacity="0.7" />
+            </svg>
+            <span className="text-xl font-bold text-gray-900">BayaniTrade</span>
           </div>
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
-            <button 
+            <button
               onClick={() => scrollToSection('overview')}
-              className="text-gray-700 hover:text-green-600 font-medium transition"
+              className="text-gray-700 hover:text-green-600 font-medium transition-colors"
             >
               Overview
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection('features')}
-              className="text-gray-700 hover:text-green-600 font-medium transition"
+              className="text-gray-700 hover:text-green-600 font-medium transition-colors"
             >
               Features
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection('about')}
-              className="text-gray-700 hover:text-green-600 font-medium transition"
+              className="text-gray-700 hover:text-green-600 font-medium transition-colors"
             >
               About
-            </button>
-            <button 
-              onClick={onGetStarted}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-2 rounded-full font-semibold hover:shadow-lg transform hover:scale-105 transition-all"
-            >
-              Get Started
             </button>
           </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden">
-            <button 
+            <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-gray-700 focus:outline-none"
             >
@@ -72,30 +67,24 @@ const Navbar = ({ onGetStarted }) => {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-gray-200">
-            <button 
+          <div className="md:hidden py-4 border-t border-gray-100">
+            <button
               onClick={() => scrollToSection('overview')}
               className="block w-full text-left py-3 text-gray-700 hover:text-green-600 font-medium"
             >
               Overview
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection('features')}
               className="block w-full text-left py-3 text-gray-700 hover:text-green-600 font-medium"
             >
               Features
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection('about')}
               className="block w-full text-left py-3 text-gray-700 hover:text-green-600 font-medium"
             >
               About
-            </button>
-            <button 
-              onClick={onGetStarted}
-              className="w-full mt-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-full font-semibold"
-            >
-              Get Started
             </button>
           </div>
         )}

@@ -5,154 +5,221 @@ const LandingPage = ({ onGetStarted }) => {
   return (
     <div className="min-h-screen">
       <Navbar onGetStarted={onGetStarted} />
-      
+
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
-        {/* Decorative Elements */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-green-300 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-emerald-300 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="text-center">
-            <div className="inline-flex items-center bg-green-100 rounded-full px-4 py-2 mb-6">
-              <span className="text-green-800 font-semibold">🌱 Connecting Filipino Farmers</span>
-            </div>
-            
-            <h1 className="text-5xl md:text-7xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
-                BayaniTrade
-              </span>
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Empowering Filipino farmers by connecting them directly to restaurants or karenderya partners. Fresh produce, fair prices, stronger communities.
-            </p>
-            
-            <button 
-              onClick={onGetStarted}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all"
-            >
-              Get Started → 
-            </button>
+      <section className="min-h-screen flex items-center justify-center pt-16"
+        style={{ background: 'linear-gradient(135deg, #dcfce7 0%, #f0fdf4 40%, #fefce8 100%)' }}>
+        <div className="max-w-3xl mx-auto px-6 text-center py-24">
+          <div className="inline-block border border-green-300 rounded-full px-4 py-1 mb-8">
+            <span className="text-green-700 text-sm font-medium">Empowering Philippine Agriculture</span>
           </div>
-        </div>
 
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
+          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
+            Let's Get Started with<br />
+            <span className="text-green-600">BayaniTrade</span>
+          </h1>
+
+          <p className="text-gray-500 text-lg mb-10 max-w-xl mx-auto">
+            Connecting farmers, restaurants, and logistics providers for a sustainable and efficient agricultural marketplace across the Philippines
+          </p>
+
+          <button
+            onClick={onGetStarted}
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-4 rounded-full text-base transition-colors"
+          >
+            Get Started Today →
+          </button>
         </div>
       </section>
 
       {/* Overview Section */}
-      <section id="overview" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-800">
-            How <span className="text-green-600">BayaniTrade</span> Works
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl">🌾</span>
+      <section id="overview" className="py-24 bg-white">
+        <div className="max-w-5xl mx-auto px-6">
+          <h2 className="text-4xl font-extrabold text-center text-gray-900 mb-3">Overview</h2>
+          <p className="text-center text-green-600 mb-14 text-base">
+            A comprehensive platform designed for every stakeholder in the agricultural supply chain
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* For Farmers */}
+            <div
+              onClick={onGetStarted}
+              className="bg-green-50 rounded-2xl p-8 flex flex-col items-center text-center cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 hover:bg-green-100"
+            >
+              <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mb-5">
+                <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22V12" />
+                  <path d="M12 12C10 9 7 8 5 8c0 3 2 5.5 7 4z" fill="white" stroke="none" />
+                  <path d="M12 12C14 9 17 8 19 8c0 3-2 5.5-7 4z" fill="white" stroke="none" />
+                </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-3">Farmers List Produce</h3>
-              <p className="text-gray-600">Farmers can easily list their fresh harvest with prices and quantities</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">For Farmers</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-5">
+                Sell your fresh produce directly to restaurants and reach more customers efficiently with fair pricing
+              </p>
+              <span className="text-green-600 text-sm font-semibold">Get Started →</span>
             </div>
-            
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl">🤝</span>
+
+            {/* For Restaurants */}
+            <div
+              onClick={onGetStarted}
+              className="bg-yellow-50 rounded-2xl p-8 flex flex-col items-center text-center border-2 border-yellow-300 shadow-md cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-1 hover:bg-yellow-100"
+            >
+              <div className="w-16 h-16 bg-orange-400 rounded-2xl flex items-center justify-center mb-5">
+                <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-3">Direct Connection</h3>
-              <p className="text-gray-600">Restaurants find and order directly from local farmers, cutting out middlemen</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">For Restaurants</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-5">
+                Source fresh, quality ingredients directly from local farmers at competitive prices and guaranteed quality
+              </p>
+              <span className="text-orange-500 text-sm font-semibold">Get Started →</span>
             </div>
-            
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl">🚚</span>
+
+            {/* For Logistics */}
+            <div
+              onClick={onGetStarted}
+              className="bg-blue-50 rounded-2xl p-8 flex flex-col items-center text-center cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 hover:bg-blue-100"
+            >
+              <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mb-5">
+                <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="1" y="3" width="15" height="13" rx="1" />
+                  <path d="M16 8h4l3 5v3h-7V8z" />
+                  <circle cx="5.5" cy="18.5" r="2.5" />
+                  <circle cx="18.5" cy="18.5" r="2.5" />
+                </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-3">Efficient Logistics</h3>
-              <p className="text-gray-600">Logistics partners ensure fresh delivery from farm to restaurant</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">For Logistics</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-5">
+                Connect with businesses and expand your delivery network in the rapidly growing agriculture sector
+              </p>
+              <span className="text-blue-600 text-sm font-semibold">Get Started →</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-gradient-to-br from-green-50 to-emerald-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-800">
-            Powerful <span className="text-green-600">Features</span>
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white p-8 rounded-2xl shadow-md card-hover">
-              <div className="text-3xl mb-4">📊</div>
-              <h3 className="text-xl font-semibold mb-3">Real-time Inventory</h3>
-              <p className="text-gray-600">Track available produce and manage your listings in real-time</p>
+      <section id="features" className="py-24 bg-green-50">
+        <div className="max-w-5xl mx-auto px-6">
+          <h2 className="text-4xl font-extrabold text-center text-gray-900 mb-3">Features</h2>
+          <p className="text-center text-orange-500 mb-14 text-base">
+            Powerful tools designed to streamline your agricultural trading experience
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Real-time Market Prices */}
+            <div className="bg-white rounded-2xl p-6 flex items-start space-x-4 border-l-4 border-green-500">
+              <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                  <polyline points="17 6 23 6 23 12" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 mb-1">Real-time Market Prices</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Stay updated with current market rates and make informed trading decisions with live pricing data
+                </p>
+              </div>
             </div>
-            
-            <div className="bg-white p-8 rounded-2xl shadow-md card-hover">
-              <div className="text-3xl mb-4">💰</div>
-              <h3 className="text-xl font-semibold mb-3">Fair Pricing</h3>
-              <p className="text-gray-600">Transparent pricing that benefits both farmers and buyers</p>
+
+            {/* Direct Communication */}
+            <div className="bg-white rounded-2xl p-6 flex items-start space-x-4 border-l-4 border-blue-500">
+              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 mb-1">Direct Communication</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Chat directly with farmers, restaurants, and logistics partners for seamless coordination
+                </p>
+              </div>
             </div>
-            
-            <div className="bg-white p-8 rounded-2xl shadow-md card-hover">
-              <div className="text-3xl mb-4">🗺️</div>
-              <h3 className="text-xl font-semibold mb-3">Route Optimization</h3>
-              <p className="text-gray-600">Smart logistics planning for efficient deliveries</p>
+
+            {/* Integrated Logistics */}
+            <div className="bg-white rounded-2xl p-6 flex items-start space-x-4 border-l-4 border-orange-400">
+              <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="1" y="3" width="15" height="13" rx="1" />
+                  <path d="M16 8h4l3 5v3h-7V8z" />
+                  <circle cx="5.5" cy="18.5" r="2.5" />
+                  <circle cx="18.5" cy="18.5" r="2.5" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 mb-1">Integrated Logistics</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Seamlessly coordinate deliveries from farm to table with real-time tracking and updates
+                </p>
+              </div>
             </div>
-            
-            <div className="bg-white p-8 rounded-2xl shadow-md card-hover">
-              <div className="text-3xl mb-4">⭐</div>
-              <h3 className="text-xl font-semibold mb-3">Quality Ratings</h3>
-              <p className="text-gray-600">Build trust with verified reviews and ratings system</p>
+
+            {/* Quality Assurance */}
+            <div className="bg-white rounded-2xl p-6 flex items-start space-x-4 border-l-4 border-purple-500">
+              <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22V12" />
+                  <path d="M12 12C10 9 7 8 5 8c0 3 2 5.5 7 4z" fill="currentColor" stroke="none" opacity="0.4" />
+                  <path d="M12 12C14 9 17 8 19 8c0 3-2 5.5-7 4z" fill="currentColor" stroke="none" opacity="0.4" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 mb-1">Quality Assurance</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Rating system and verified reviews ensure fresh, quality produce delivered every time
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-800">
-            About <span className="text-green-600">BayaniTrade</span>
-          </h2>
-          
-          <div className="max-w-3xl mx-auto text-center">
-            <p className="text-lg text-gray-600 mb-6">
-              BayaniTrade was born from a simple idea: to honor the Filipino farmers - our modern-day heroes (bayani) - by giving them direct access to markets and fair prices for their hard work.
+      <section id="about" className="py-24" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%)' }}>
+        <div className="max-w-3xl mx-auto px-6">
+          <h2 className="text-4xl font-extrabold text-center text-gray-900 mb-10">About BayaniTrade</h2>
+
+          <div className="bg-white rounded-2xl shadow-sm p-10">
+            <p className="text-gray-600 text-base leading-relaxed mb-6">
+              BayaniTrade is a revolutionary platform designed to strengthen the agricultural supply chain in the Philippines. By connecting farmers directly with restaurants and providing reliable logistics partners, we're creating a more efficient, transparent, and sustainable food distribution system.
             </p>
-            <p className="text-lg text-gray-600 mb-6">
-              We believe in strengthening the agricultural ecosystem by connecting farmers, restaurants, and logistics providers in one seamless platform. Every transaction on BayaniTrade supports local farming communities and promotes sustainable agriculture.
+            <p className="text-gray-600 text-base leading-relaxed mb-8">
+              Our mission is to empower Filipino farmers with fair prices, help restaurants access fresh local produce, and support logistics providers in growing their business. Together, we're building a stronger agricultural community.
             </p>
-            <div className="flex justify-center space-x-8 mt-8">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">1000+</div>
-                <div className="text-gray-600">Farmers</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">500+</div>
-                <div className="text-gray-600">Restaurants</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">50+</div>
-                <div className="text-gray-600">Cities</div>
-              </div>
+            <div className="text-center">
+              <button
+                onClick={onGetStarted}
+                className="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-4 rounded-full text-base transition-colors"
+              >
+                Join BayaniTrade Today →
+              </button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p>&copy; 2024 BayaniTrade. Supporting Filipino Agriculture.</p>
+      <footer className="bg-gray-900 py-10">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <div className="flex items-center justify-center space-x-2 mb-2">
+            <svg className="w-6 h-6 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22V12" />
+              <path d="M12 12C10 9 7 8 5 8c0 3 2 5.5 7 4z" fill="currentColor" stroke="none" />
+              <path d="M12 12C14 9 17 8 19 8c0 3-2 5.5-7 4z" fill="currentColor" stroke="none" />
+            </svg>
+            <span className="text-white font-bold text-lg">BayaniTrade</span>
+          </div>
+          <p className="text-green-400 text-sm">Empowering Philippine Agriculture</p>
         </div>
       </footer>
     </div>
