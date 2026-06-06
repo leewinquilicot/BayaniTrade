@@ -1,38 +1,31 @@
-const USERS_KEY = 'bayani_users';
-const CURRENT_USER_KEY = 'bayani_currentUser';
+import { supabase } from '../lib/supabase';
 
-const parse = (key, fallback) => {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback;
-  } catch {
-    return fallback;
-  }
+export const signUp = async ({ name, phone, email, password, role }) => {
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) return { error: error.message };
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .insert({ id: data.user.id, name, phone, role });
+
+  if (profileError) return { error: profileError.message };
+  return { user: { ...data.user, name, phone, role } };
 };
 
-export const getUsers = () => parse(USERS_KEY, []);
-export const getCurrentUser = () => parse(CURRENT_USER_KEY, null);
+export const login = async ({ email, password }) => {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { error: error.message };
 
-export const signUp = ({ name, phone, email, password, role }) => {
-  const users = getUsers();
-  if (users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
-    return { error: 'An account with this email already exists.' };
-  }
-  const user = { name, phone, email, password, role };
-  localStorage.setItem(USERS_KEY, JSON.stringify([...users, user]));
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  return { user };
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', data.user.id)
+    .single();
+
+  if (profileError) return { error: 'Profile not found. Please sign up.' };
+  return { user: { ...data.user, ...profile } };
 };
 
-export const login = ({ email, password }) => {
-  const users = getUsers();
-  const user = users.find(
-    (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-  );
-  if (!user) return { error: 'Incorrect email or password.' };
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  return { user };
-};
-
-export const logout = () => {
-  localStorage.removeItem(CURRENT_USER_KEY);
+export const logout = async () => {
+  await supabase.auth.signOut();
 };

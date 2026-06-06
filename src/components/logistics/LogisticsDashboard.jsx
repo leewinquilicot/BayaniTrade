@@ -1,11 +1,6 @@
-import React, { useState } from 'react';
-
-const DELIVERIES = [
-  { id: 1, from: 'Green Valley Farm', to: 'Casa Manila Restaurant', items: 'Rice (20kg), Vegetables (10kg)', fee: '₱350', status: 'Pending' },
-  { id: 2, from: 'Sunshine Fields', to: 'Bistro Verde', items: 'Tomatoes (15kg), Herbs (5kg)', fee: '₱280', status: 'In Progress' },
-  { id: 3, from: 'Mountain View', to: 'The Garden Cafe', items: 'Eggplant (10kg), Carrots (8kg)', fee: '₱310', status: 'Completed' },
-  { id: 4, from: 'Rizal Farms', to: 'Manila Eats', items: 'Green Peppers (12kg)', fee: '₱240', status: 'Pending' },
-];
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
+import ProfileModal from '../ProfileModal';
 
 const statusStyle = {
   Pending:       'bg-orange-100 text-orange-600',
@@ -21,27 +16,11 @@ const LogoutIcon = () => (
   </svg>
 );
 
-const LogisticsDashboard = ({ currentUser, onLogout }) => {
+const LogisticsDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
   const [activeTab, setActiveTab] = useState('available');
-  const [deliveries, setDeliveries] = useState(DELIVERIES);
-
-  const accept = (id) => {
-    setDeliveries(deliveries.map((d) =>
-      d.id === id ? { ...d, status: 'In Progress' } : d
-    ));
-  };
-
-  const complete = (id) => {
-    setDeliveries(deliveries.map((d) =>
-      d.id === id ? { ...d, status: 'Completed' } : d
-    ));
-  };
-
-  const visible = deliveries.filter((d) => {
-    if (activeTab === 'available') return d.status === 'Pending';
-    if (activeTab === 'active')    return d.status === 'In Progress';
-    return d.status === 'Completed';
-  });
+  const [deliveries, setDeliveries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showProfile, setShowProfile] = useState(false);
 
   const NAV = [
     { id: 'available', label: 'Available' },
@@ -49,10 +28,61 @@ const LogisticsDashboard = ({ currentUser, onLogout }) => {
     { id: 'history',   label: 'History' },
   ];
 
+  useEffect(() => {
+    loadDeliveries();
+  }, []);
+
+  const loadDeliveries = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('deliveries')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (data) setDeliveries(data);
+    setLoading(false);
+  };
+
+  const accept = async (id) => {
+    const delivery = deliveries.find(d => d.id === id);
+    const { data, error } = await supabase
+      .from('deliveries')
+      .update({ status: 'In Progress', logistics_id: currentUser.id })
+      .eq('id', id)
+      .select()
+      .single();
+    if (!error && data) {
+      setDeliveries(prev => prev.map(d => d.id === id ? data : d));
+      // Parcel picked up — update linked order to "To Receive"
+      if (delivery?.order_id) {
+        await supabase.from('orders').update({ status: 'To Receive' }).eq('id', delivery.order_id);
+      }
+    }
+  };
+
+  const complete = async (id) => {
+    const delivery = deliveries.find(d => d.id === id);
+    const { data, error } = await supabase
+      .from('deliveries')
+      .update({ status: 'Completed' })
+      .eq('id', id)
+      .select()
+      .single();
+    if (!error && data) {
+      setDeliveries(prev => prev.map(d => d.id === id ? data : d));
+      // Restaurant must confirm receipt — don't auto-complete the order
+    }
+  };
+
+  const visible = deliveries.filter((d) => {
+    if (activeTab === 'available') return d.status === 'Pending';
+    if (activeTab === 'active')    return d.status === 'In Progress' && d.logistics_id === currentUser.id;
+    return d.status === 'Completed' && d.logistics_id === currentUser.id;
+  });
+
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen overflow-hidden bg-gray-100">
       {/* Sidebar */}
-      <aside className="w-52 bg-blue-800 flex flex-col flex-shrink-0 min-h-screen">
+      <aside className="w-52 bg-blue-800 flex flex-col flex-shrink-0 h-screen">
         <div className="flex items-center space-x-2 px-5 py-5 border-b border-blue-700">
           <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C9 6 6 7 4 8c0 4 3 7 8 6V22h1V14c5 1 8-2 8-6-2-1-5-2-8-6z" />
@@ -66,9 +96,7 @@ const LogisticsDashboard = ({ currentUser, onLogout }) => {
               key={id}
               onClick={() => setActiveTab(id)}
               className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-blue-200 hover:bg-blue-700 hover:text-white'
+                activeTab === id ? 'bg-blue-600 text-white' : 'text-blue-200 hover:bg-blue-700 hover:text-white'
               }`}
             >
               {label}
@@ -76,13 +104,21 @@ const LogisticsDashboard = ({ currentUser, onLogout }) => {
           ))}
         </nav>
 
-        <div className="px-3 py-5 border-t border-blue-700">
+        <div className="px-3 pb-5 border-t border-blue-700 space-y-1 pt-3">
+          <button
+            onClick={() => setShowProfile(true)}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-700 hover:text-white transition-colors"
+          >
+            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+              {currentUser?.name?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+            <span className="truncate">{currentUser?.name || 'My Profile'}</span>
+          </button>
           <button
             onClick={onLogout}
             className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-blue-200 hover:bg-blue-700 hover:text-white transition-colors"
           >
-            <LogoutIcon />
-            <span>Logout</span>
+            <LogoutIcon /><span>Logout</span>
           </button>
         </div>
       </aside>
@@ -104,13 +140,13 @@ const LogisticsDashboard = ({ currentUser, onLogout }) => {
             </div>
             <div className="bg-orange-400 rounded-2xl p-6 text-white">
               <p className="text-orange-100 text-sm font-medium mb-3">In Progress</p>
-              <p className="text-4xl font-bold mb-1">{deliveries.filter(d => d.status === 'In Progress').length}</p>
+              <p className="text-4xl font-bold mb-1">{deliveries.filter(d => d.status === 'In Progress' && d.logistics_id === currentUser.id).length}</p>
               <p className="text-orange-100 text-sm">Active routes</p>
             </div>
             <div className="bg-green-600 rounded-2xl p-6 text-white">
-              <p className="text-green-100 text-sm font-medium mb-3">Today's Earnings</p>
-              <p className="text-4xl font-bold mb-1">₱2,450</p>
-              <p className="text-green-200 text-sm">+₱350 from last delivery</p>
+              <p className="text-green-100 text-sm font-medium mb-3">Completed</p>
+              <p className="text-4xl font-bold mb-1">{deliveries.filter(d => d.status === 'Completed' && d.logistics_id === currentUser.id).length}</p>
+              <p className="text-green-200 text-sm">All time</p>
             </div>
           </div>
 
@@ -119,11 +155,15 @@ const LogisticsDashboard = ({ currentUser, onLogout }) => {
             <h2 className="text-lg font-bold text-gray-900 mb-1 capitalize">{activeTab} Deliveries</h2>
             <p className="text-gray-400 text-sm mb-5">
               {activeTab === 'available' && 'Deliveries waiting to be accepted'}
-              {activeTab === 'active' && 'Your current deliveries in progress'}
-              {activeTab === 'history' && 'Your completed deliveries'}
+              {activeTab === 'active'    && 'Your current deliveries in progress'}
+              {activeTab === 'history'   && 'Your completed deliveries'}
             </p>
 
-            {visible.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-10">
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : visible.length === 0 ? (
               <p className="text-center text-gray-400 py-8">No deliveries here right now.</p>
             ) : (
               <div className="space-y-3">
@@ -133,19 +173,22 @@ const LogisticsDashboard = ({ currentUser, onLogout }) => {
                       <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusStyle[d.status]}`}>
                         {d.status}
                       </span>
-                      <span className="text-blue-700 font-bold text-lg">{d.fee}</span>
+                      <span className="text-blue-700 font-bold text-lg">₱{Number(d.fee).toLocaleString()}</span>
                     </div>
 
                     <div className="space-y-1.5 mb-3">
                       <div className="flex items-center space-x-2 text-sm">
                         <span className="text-gray-400 w-10">From</span>
-                        <span className="font-semibold text-gray-800">{d.from}</span>
+                        <span className="font-semibold text-gray-800">{d.from_location}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-sm">
                         <span className="text-gray-400 w-10">To</span>
-                        <span className="font-semibold text-gray-800">{d.to}</span>
+                        <span className="font-semibold text-gray-800">{d.to_location}</span>
                       </div>
                       <p className="text-gray-400 text-xs mt-1">Items: {d.items}</p>
+                      <p className="text-gray-300 text-xs">
+                        #{d.id} · {new Date(d.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
                     </div>
 
                     <div className="flex space-x-2">
@@ -157,7 +200,7 @@ const LogisticsDashboard = ({ currentUser, onLogout }) => {
                           Accept Delivery
                         </button>
                       )}
-                      {d.status === 'In Progress' && (
+                      {d.status === 'In Progress' && d.logistics_id === currentUser.id && (
                         <button
                           onClick={() => complete(d.id)}
                           className="flex-1 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-xl transition-colors"
@@ -178,6 +221,13 @@ const LogisticsDashboard = ({ currentUser, onLogout }) => {
           </div>
         </div>
       </main>
+      {showProfile && (
+        <ProfileModal
+          currentUser={currentUser}
+          onClose={() => setShowProfile(false)}
+          onSave={(updated) => { onUserUpdate(updated); setShowProfile(false); }}
+        />
+      )}
     </div>
   );
 };

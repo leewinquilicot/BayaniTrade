@@ -1,72 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from './lib/supabase';
 import LandingPage from './components/LandingPage';
 import AuthPage from './components/AuthPage';
-import RoleSelection from './components/RoleSelection';
 import FarmerDashboard from './components/farmer/FarmerDashboard';
 import RestaurantDashboard from './components/restaurant/RestaurantDashboard';
 import LogisticsDashboard from './components/logistics/LogisticsDashboard';
-import { getCurrentUser, logout } from './utils/auth';
 
 const DASHBOARD_ROLES = ['farmer', 'restaurant', 'logistics'];
 
 function App() {
-  const [currentPage, setCurrentPage] = useState(() => {
-    const user = getCurrentUser();
-    if (user && DASHBOARD_ROLES.includes(user.role)) return user.role;
-    return 'landing';
-  });
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentPage, setCurrentPage] = useState('landing');
+  const [loading, setLoading] = useState(true);
 
-  const handleGetStarted = () => setCurrentPage('auth');
-  const handleBack = () => setCurrentPage('landing');
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'INITIAL_SESSION') {
+          if (session) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            if (profile) {
+              setCurrentUser({ ...session.user, ...profile });
+              setCurrentPage(profile.role);
+            }
+          }
+          setLoading(false);
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+          setCurrentPage('landing');
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const handleLogin = (role) => {
-    if (DASHBOARD_ROLES.includes(role)) {
-      setCurrentPage(role);
-    } else {
-      setCurrentPage('role');
-    }
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    setCurrentPage(user.role);
   };
 
-  const handleSelectRole = (role) => {
-    setCurrentPage(role);
+  const handleUserUpdate = (updatedUser) => {
+    setCurrentUser(updatedUser);
   };
 
-  const handleLogout = () => {
-    logout();
-    setCurrentPage('landing');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
   };
 
-  // Route guard — someone navigating directly to a dashboard without a session
-  const currentUser = getCurrentUser();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-green-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-green-700 font-medium text-sm">Loading BayaniTrade…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentPage === 'landing') return <LandingPage onGetStarted={() => setCurrentPage('auth')} />;
+  if (currentPage === 'auth') return <AuthPage onLogin={handleLogin} onBack={() => setCurrentPage('landing')} />;
+
   if (DASHBOARD_ROLES.includes(currentPage) && !currentUser) {
-    return <AuthPage onLogin={handleLogin} onBack={handleBack} />;
+    return <AuthPage onLogin={handleLogin} onBack={() => setCurrentPage('landing')} />;
   }
 
-  if (currentPage === 'landing') {
-    return <LandingPage onGetStarted={handleGetStarted} />;
-  }
+  if (currentPage === 'farmer')     return <FarmerDashboard     currentUser={currentUser} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />;
+  if (currentPage === 'restaurant') return <RestaurantDashboard currentUser={currentUser} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />;
+  if (currentPage === 'logistics')  return <LogisticsDashboard  currentUser={currentUser} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />;
 
-  if (currentPage === 'auth') {
-    return <AuthPage onLogin={handleLogin} onBack={handleBack} />;
-  }
-
-  if (currentPage === 'role') {
-    return <RoleSelection onSelectRole={handleSelectRole} />;
-  }
-
-  if (currentPage === 'farmer') {
-    return <FarmerDashboard currentUser={currentUser} onLogout={handleLogout} />;
-  }
-
-  if (currentPage === 'restaurant') {
-    return <RestaurantDashboard currentUser={currentUser} onLogout={handleLogout} />;
-  }
-
-  if (currentPage === 'logistics') {
-    return <LogisticsDashboard currentUser={currentUser} onLogout={handleLogout} />;
-  }
-
-  return <LandingPage onGetStarted={handleGetStarted} />;
+  return <LandingPage onGetStarted={() => setCurrentPage('auth')} />;
 }
 
 export default App;

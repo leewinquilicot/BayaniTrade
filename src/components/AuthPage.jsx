@@ -48,6 +48,7 @@ const AuthPage = ({ onLogin, onBack }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '', phone: '', email: '', password: '', confirmPassword: '',
   });
@@ -57,11 +58,14 @@ const AuthPage = ({ onLogin, onBack }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    const result = login({ email: formData.email, password: formData.password });
+    setSubmitting(true);
+    setError('');
+    const result = await login({ email: formData.email, password: formData.password });
+    setSubmitting(false);
     if (result.error) { setError(result.error); return; }
-    onLogin(result.user.role);
+    onLogin(result.user);
   };
 
   const handleSignUpNext = (e) => {
@@ -78,20 +82,23 @@ const AuthPage = ({ onLogin, onBack }) => {
     setStep(2);
   };
 
-  const handleSelectRole = (roleId) => {
-    const result = signUp({
+  const handleSelectRole = async (roleId) => {
+    setSubmitting(true);
+    setError('');
+    const result = await signUp({
       name: formData.name,
       phone: formData.phone,
       email: formData.email,
       password: formData.password,
       role: roleId,
     });
+    setSubmitting(false);
     if (result.error) {
       setError(result.error);
       setStep(1);
       return;
     }
-    onLogin(roleId);
+    onLogin(result.user);
   };
 
   const switchMode = (toLogin) => {
@@ -120,7 +127,6 @@ const AuthPage = ({ onLogin, onBack }) => {
       className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative"
       style={{ background: 'linear-gradient(135deg, #dcfce7 0%, #f0fdf4 40%, #fefce8 100%)' }}
     >
-      {/* Back */}
       <button
         onClick={step === 2 ? () => { setStep(1); setError(''); } : onBack}
         className="absolute top-6 left-6 flex items-center space-x-1 text-gray-500 hover:text-green-600 text-sm font-medium transition-colors"
@@ -131,7 +137,6 @@ const AuthPage = ({ onLogin, onBack }) => {
         <span>Back</span>
       </button>
 
-      {/* Logo */}
       <div className="flex flex-col items-center mb-6">
         <div className="w-14 h-14 bg-green-600 rounded-2xl flex items-center justify-center mb-3 shadow-md">
           <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -142,7 +147,7 @@ const AuthPage = ({ onLogin, onBack }) => {
         <p className="text-gray-500 text-sm mt-0.5">Agricultural Marketplace Platform</p>
       </div>
 
-      {/* ── Step 2: Role Selection ── */}
+      {/* Step 2: Role Selection */}
       {!isLogin && step === 2 ? (
         <div className="w-full max-w-md">
           <div className="bg-white rounded-3xl shadow-xl p-8">
@@ -160,7 +165,8 @@ const AuthPage = ({ onLogin, onBack }) => {
                 <button
                   key={role.id}
                   onClick={() => handleSelectRole(role.id)}
-                  className="w-full flex items-center space-x-4 p-4 rounded-2xl border-2 border-transparent bg-gray-50 hover:bg-green-50 hover:border-green-300 transition-all duration-200 group"
+                  disabled={submitting}
+                  className="w-full flex items-center space-x-4 p-4 rounded-2xl border-2 border-transparent bg-gray-50 hover:bg-green-50 hover:border-green-300 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className={`w-12 h-12 ${role.iconBg} rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform`}>
                     {role.icon}
@@ -169,9 +175,13 @@ const AuthPage = ({ onLogin, onBack }) => {
                     <p className="font-semibold text-gray-900 text-sm">{role.label}</p>
                     <p className="text-gray-500 text-xs leading-relaxed">{role.description}</p>
                   </div>
-                  <svg className="w-5 h-5 text-gray-300 group-hover:text-green-500 ml-auto flex-shrink-0 transition-colors" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
+                  {submitting ? (
+                    <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin ml-auto flex-shrink-0" />
+                  ) : (
+                    <svg className="w-5 h-5 text-gray-300 group-hover:text-green-500 ml-auto flex-shrink-0 transition-colors" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  )}
                 </button>
               ))}
             </div>
@@ -184,10 +194,9 @@ const AuthPage = ({ onLogin, onBack }) => {
           </p>
         </div>
       ) : (
-        /* ── Step 1: Credentials ── */
+        /* Step 1: Credentials */
         <>
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm p-8">
-            {/* Tabs */}
             <div className="flex bg-gray-100 rounded-xl p-1 mb-7">
               <button
                 onClick={() => switchMode(true)}
@@ -203,7 +212,6 @@ const AuthPage = ({ onLogin, onBack }) => {
               </button>
             </div>
 
-            {/* Error banner */}
             {error && (
               <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">
                 {error}
@@ -251,8 +259,16 @@ const AuthPage = ({ onLogin, onBack }) => {
                 </div>
               )}
 
-              <button type="submit" className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white py-3.5 rounded-full font-semibold text-sm transition-colors mt-2 shadow-sm">
-                {isLogin ? 'Login to Your Account' : 'Continue →'}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white py-3.5 rounded-full font-semibold text-sm transition-colors mt-2 shadow-sm flex items-center justify-center space-x-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {submitting ? (
+                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Please wait…</span></>
+                ) : (
+                  <span>{isLogin ? 'Login to Your Account' : 'Continue →'}</span>
+                )}
               </button>
             </form>
 
