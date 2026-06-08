@@ -5,10 +5,12 @@ import ProfileModal from '../ProfileModal';
 
 const statusStyle = {
   Pending:      'bg-gray-100 text-gray-600',
+  Preparing:    'bg-orange-100 text-orange-700',
   'To Ship':    'bg-yellow-100 text-yellow-700',
   'To Receive': 'bg-blue-100 text-blue-600',
   Completed:    'bg-green-100 text-green-600',
   'In Transit': 'bg-blue-100 text-blue-600',
+  Cancelled:    'bg-red-100 text-red-600',
 };
 
 const stockStyle = {
@@ -52,6 +54,14 @@ const SalesIcon = () => (
     <line x1="6" y1="20" x2="6" y2="16" />
   </svg>
 );
+const OrdersIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+    <rect x="9" y="3" width="6" height="4" rx="1" />
+    <line x1="9" y1="12" x2="15" y2="12" />
+    <line x1="9" y1="16" x2="13" y2="16" />
+  </svg>
+);
 const LogoutIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -83,6 +93,7 @@ const FarmerDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
   const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', emoji: '🌾', imgPreview: null, imgFile: null });
   const [saveError, setSaveError] = useState('');
   const [showProfile, setShowProfile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orderDetails, setOrderDetails] = useState(null);
 
   const processOrder = async (order, newStatus) => {
@@ -91,6 +102,38 @@ const FarmerDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
       .update({ status: newStatus })
       .eq('id', order.id);
     if (error) { console.error('Process order error:', error); return; }
+
+    // When farmer marks ready to ship → activate the delivery so logistics can see and accept it
+    if (newStatus === 'To Ship') {
+      const { data: deliveryRows } = await supabase
+        .from('deliveries')
+        .select('id')
+        .eq('order_id', order.id)
+        .limit(1);
+
+      const existing = deliveryRows?.[0];
+
+      if (existing) {
+        await supabase
+          .from('deliveries')
+          .update({
+            status: 'Pending',
+            from_location: currentUser.name || 'Farm',
+            to_location: order.restaurant,
+          })
+          .eq('id', existing.id);
+      } else {
+        const fee = Math.max(150, Math.round((order.rawAmount || 0) * 0.1));
+        await supabase.from('deliveries').insert({
+          order_id: order.id,
+          from_location: currentUser.name || 'Farm',
+          to_location: order.restaurant,
+          items: order.items,
+          fee,
+          status: 'Pending',
+        });
+      }
+    }
 
     const updated = { ...order, status: newStatus, canProcess: false };
     setOrders(prev => prev.map(o => o.id === order.id ? updated : o));
@@ -131,7 +174,7 @@ const FarmerDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
 
     setOrders(ordersData.map(o => ({
       id: o.id,
-      restaurant: nameMap[o.restaurant_id] || 'Unknown Restaurant',
+      restaurant: o.restaurant_name || nameMap[o.restaurant_id] || 'Unknown Restaurant',
       status: o.status,
       amount: `₱${Number(o.amount).toLocaleString()}`,
       rawAmount: Number(o.amount),
@@ -171,19 +214,30 @@ const FarmerDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
     const stockNum = Number(newProduct.stock);
     const status = computeStatus(stockNum);
 
-    const { data, error } = await supabase
+    const productPayload = {
+      farmer_id: currentUser.id,
+      farmer_name: currentUser.name || '',
+      name: newProduct.name,
+      price: Number(newProduct.price),
+      stock: stockNum,
+      status,
+      emoji: newProduct.emoji,
+      img_url,
+    };
+
+    let { data, error } = await supabase
       .from('products')
-      .insert({
-        farmer_id: currentUser.id,
-        name: newProduct.name,
-        price: Number(newProduct.price),
-        stock: stockNum,
-        status,
-        emoji: newProduct.emoji,
-        img_url,
-      })
+      .insert(productPayload)
       .select()
       .single();
+
+    // Retry without farmer_name if the column doesn't exist yet
+    if (error?.message?.includes('farmer_name')) {
+      const { farmer_name, ...payloadWithoutName } = productPayload;
+      const retry = await supabase.from('products').insert(payloadWithoutName).select().single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('Save product error:', error);
@@ -202,26 +256,39 @@ const FarmerDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
   const NAV = [
     { id: 'dashboard', label: 'Dashboard',   Icon: DashboardIcon },
     { id: 'products',  label: 'My Products', Icon: ProductsIcon },
+    { id: 'orders',    label: 'Orders',      Icon: OrdersIcon },
     { id: 'sales',     label: 'Sales',       Icon: SalesIcon },
   ];
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
 
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="w-52 bg-green-800 flex flex-col flex-shrink-0 h-screen">
-        <div className="flex items-center space-x-2 px-5 py-5 border-b border-green-700">
-          <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C9 6 6 7 4 8c0 4 3 7 8 6V22h1V14c5 1 8-2 8-6-2-1-5-2-8-6z" />
-          </svg>
-          <span className="text-white font-bold text-lg">BayaniTrade</span>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-green-800 flex flex-col flex-shrink-0 transform transition-transform duration-300 ease-in-out md:relative md:w-52 md:translate-x-0 md:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between px-5 py-5 border-b border-green-700">
+          <div className="flex items-center space-x-2">
+            <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C9 6 6 7 4 8c0 4 3 7 8 6V22h1V14c5 1 8-2 8-6-2-1-5-2-8-6z" />
+            </svg>
+            <span className="text-white font-bold text-lg">BayaniTrade</span>
+          </div>
+          <button onClick={() => setSidebarOpen(false)} className="md:hidden text-green-300 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <nav className="flex-1 px-3 py-5 space-y-1">
           {NAV.map(({ id, label, Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => { setActiveTab(id); setSidebarOpen(false); }}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === id ? 'bg-green-600 text-white' : 'text-green-200 hover:bg-green-700 hover:text-white'
               }`}
@@ -251,13 +318,21 @@ const FarmerDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
       </aside>
 
       {/* ── Main Content ── */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="bg-white border-b border-gray-200 px-8 py-5">
-          <h1 className="text-2xl font-bold text-gray-900">Farmer Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Welcome back, {currentUser?.name || 'Farmer'}!</p>
+      <main className="flex-1 overflow-y-auto w-full min-w-0">
+        <div className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 md:px-8 py-4 md:py-5">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden p-1 rounded-lg hover:bg-gray-100 text-gray-600 flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Welcome back, {currentUser?.name || 'Farmer'}!</h1>
+            </div>
+          </div>
         </div>
 
-        <div className="px-8 py-6 space-y-6">
+        <div className="px-4 md:px-8 py-4 md:py-6 space-y-4 md:space-y-6">
 
           {/* ══ DASHBOARD TAB ══ */}
           {activeTab === 'dashboard' && (
@@ -320,7 +395,7 @@ const FarmerDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
                   <p className="text-center text-gray-400 py-6">No orders received yet.</p>
                 ) : (
                   <div className="space-y-3">
-                    {orders.slice(0, 5).map((order) => <OrderRow key={order.id} order={order} onViewDetails={setOrderDetails} onProcess={o => processOrder(o, 'In Transit')} />)}
+                    {orders.slice(0, 5).map((order) => <OrderRow key={order.id} order={order} onViewDetails={setOrderDetails} />)}
                   </div>
                 )}
               </div>
@@ -444,6 +519,11 @@ const FarmerDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
             </div>
           )}
 
+          {/* ══ ORDERS TAB ══ */}
+          {activeTab === 'orders' && (
+            <OrdersTab orders={orders} onViewDetails={setOrderDetails} />
+          )}
+
           {/* ══ SALES TAB ══ */}
           {activeTab === 'sales' && (
             <SalesTab orders={orders} products={products} />
@@ -534,6 +614,145 @@ const LineChart = ({ data }) => {
         </g>
       ))}
     </svg>
+  );
+};
+
+/* ── Orders Tab ── */
+const STATUS_FILTERS = ['All', 'Pending', 'Preparing', 'To Ship', 'In Transit', 'Completed', 'Cancelled'];
+
+const OrdersTab = ({ orders, onViewDetails }) => {
+  const [filter, setFilter] = useState('All');
+  const [search, setSearch] = useState('');
+
+  const filtered = orders.filter(o => {
+    const matchStatus = filter === 'All' || o.status === filter;
+    const matchSearch = o.restaurant.toLowerCase().includes(search.toLowerCase()) ||
+      String(o.id).includes(search) ||
+      (o.items || '').toLowerCase().includes(search.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Header bar */}
+      <div className="bg-white rounded-2xl shadow-sm px-6 py-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">All Orders</h2>
+            <p className="text-gray-400 text-sm mt-0.5">{orders.length} total order{orders.length !== 1 ? 's' : ''}</p>
+          </div>
+          {/* Search */}
+          <div className="relative w-full sm:w-64">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search orders…"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+        </div>
+
+        {/* Status filter pills */}
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map(s => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                filter === s
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              {s}
+              {s !== 'All' && (
+                <span className="ml-1 opacity-70">
+                  ({orders.filter(o => o.status === s).length})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Orders list */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        {filtered.length === 0 ? (
+          <div className="text-center text-gray-400 py-16">
+            <svg className="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
+            </svg>
+            <p className="text-sm font-medium">No orders found</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {/* Table header */}
+            <div className="hidden md:grid grid-cols-12 px-6 py-3 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <span className="col-span-1">Order #</span>
+              <span className="col-span-2">Date</span>
+              <span className="col-span-3">Restaurant</span>
+              <span className="col-span-3">Items</span>
+              <span className="col-span-1">Status</span>
+              <span className="col-span-1 text-right">Total</span>
+              <span className="col-span-1" />
+            </div>
+
+            {filtered.map(order => (
+              <div key={order.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                {/* Desktop row */}
+                <div className="hidden md:grid grid-cols-12 items-center gap-2">
+                  <span className="col-span-1 text-sm font-bold text-gray-700">#{order.id}</span>
+                  <span className="col-span-2 text-sm text-gray-500">{order.date}</span>
+                  <span className="col-span-3 text-sm font-medium text-gray-800 truncate">{order.restaurant}</span>
+                  <span className="col-span-3 text-sm text-gray-500 truncate">{order.items}</span>
+                  <span className="col-span-1">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${statusStyle[order.status] || 'bg-gray-100 text-gray-600'}`}>
+                      {order.status}
+                    </span>
+                  </span>
+                  <span className="col-span-1 text-right text-sm font-bold text-green-600">{order.amount}</span>
+                  <div className="col-span-1 flex justify-end">
+                    <button
+                      onClick={() => onViewDetails(order)}
+                      className="text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile card */}
+                <div className="md:hidden space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-700">#{order.id}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusStyle[order.status] || 'bg-gray-100 text-gray-600'}`}>
+                        {order.status}
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold text-green-600">{order.amount}</span>
+                  </div>
+                  <div className="text-sm font-medium text-gray-800">{order.restaurant}</div>
+                  <div className="text-sm text-gray-500">{order.items}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">{order.date}</span>
+                    <button
+                      onClick={() => onViewDetails(order)}
+                      className="text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -662,7 +881,7 @@ const ProductCard = ({ product }) => {
 };
 
 /* ── Order Row ── */
-const OrderRow = ({ order, onViewDetails, onProcess }) => (
+const OrderRow = ({ order, onViewDetails }) => (
   <div className="border border-gray-100 rounded-2xl p-4">
     <div className="flex items-center justify-between mb-1">
       <div className="flex items-center space-x-2">
@@ -674,38 +893,31 @@ const OrderRow = ({ order, onViewDetails, onProcess }) => (
       <span className="text-green-600 font-bold">{order.amount}</span>
     </div>
     <p className="text-gray-400 text-sm mb-3">{order.items}</p>
-    <div className="flex space-x-2">
-      <button
-        onClick={() => onViewDetails(order)}
-        className="flex-1 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-xl transition-colors"
-      >
-        View Details
-      </button>
-      {order.canProcess && (
-        <button
-          onClick={() => onProcess(order)}
-          className="flex-1 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
-        >
-          Process Order
-        </button>
-      )}
-    </div>
+    <button
+      onClick={() => onViewDetails(order)}
+      className="w-full py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-xl transition-colors"
+    >
+      View Details
+    </button>
   </div>
 );
 
 /* ── Farmer Order Modal ── */
 const FARMER_STEPS = ['Order Placed', 'Preparing to Ship', 'Out for Delivery', 'Completed'];
-const FARMER_STEP_IDX = { Pending: 0, 'To Ship': 1, 'To Receive': 2, 'In Transit': 2, Completed: 3 };
+const FARMER_STEP_IDX = { Pending: 0, Preparing: 1, 'To Ship': 1, 'To Receive': 2, 'In Transit': 2, Completed: 3 };
 
 const STATUS_MSG = {
-  Pending:      { color: 'text-gray-500',  text: 'Awaiting your preparation. Pack the items and mark as ready to ship.' },
+  Pending:      { color: 'text-gray-500',   text: 'Awaiting your preparation. Pack the items and mark as ready to ship.' },
+  Preparing:    { color: 'text-orange-600', text: 'Goods are being prepared for shipment.' },
   'To Ship':    { color: 'text-yellow-600', text: 'Items packed. Waiting for logistics to pick up the parcel.' },
-  'To Receive': { color: 'text-blue-600',  text: 'Parcel has been picked up and is out for delivery.' },
-  Completed:    { color: 'text-green-600', text: 'Order has been received and completed by the restaurant.' },
+  'To Receive': { color: 'text-blue-600',   text: 'Parcel has been picked up and is out for delivery.' },
+  Completed:    { color: 'text-green-600',  text: 'Order has been received and completed by the restaurant.' },
+  Cancelled:    { color: 'text-red-600',    text: 'This order has been cancelled.' },
 };
 
 const FarmerOrderModal = ({ order, onProcess, onClose }) => {
   const [processing, setProcessing] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const step = FARMER_STEP_IDX[order.status] ?? 0;
   const msg  = STATUS_MSG[order.status] || STATUS_MSG.Pending;
 
@@ -714,6 +926,13 @@ const FarmerOrderModal = ({ order, onProcess, onClose }) => {
     await onProcess(order, newStatus);
     setProcessing(false);
   };
+
+  const handleCancelConfirmed = async () => {
+    setShowCancelConfirm(false);
+    await handleProcess('Cancelled');
+  };
+
+  const canAct = order.status === 'Pending' || order.status === 'Preparing';
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
@@ -794,16 +1013,60 @@ const FarmerOrderModal = ({ order, onProcess, onClose }) => {
             </div>
           </div>
 
-          {/* Farmer action — only when Pending */}
-          {order.status === 'Pending' && (
-            <button
-              onClick={() => handleProcess('To Ship')}
-              disabled={processing}
-              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 disabled:opacity-60"
-            >
-              {processing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              <span>{processing ? 'Updating…' : '📦 Mark as Ready to Ship'}</span>
-            </button>
+          {/* Cancel confirmation inline */}
+          {showCancelConfirm && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4 space-y-3">
+              <p className="text-sm font-semibold text-red-700">Cancel this order?</p>
+              <p className="text-xs text-red-500">This action cannot be undone. The restaurant will be notified.</p>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleCancelConfirmed}
+                  disabled={processing}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+                >
+                  {processing ? 'Cancelling…' : 'Yes, Cancel Order'}
+                </button>
+                <button
+                  onClick={() => setShowCancelConfirm(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  Keep Order
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Farmer actions */}
+          {canAct && !showCancelConfirm && (
+            <div className="space-y-2">
+              {order.status === 'Pending' && (
+                <button
+                  onClick={() => handleProcess('Preparing')}
+                  disabled={processing}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 disabled:opacity-60"
+                >
+                  {processing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  <span>{processing ? 'Updating…' : '🧺 Mark as Preparing the Goods'}</span>
+                </button>
+              )}
+              {order.status === 'Preparing' && (
+                <button
+                  onClick={() => handleProcess('To Ship')}
+                  disabled={processing}
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 disabled:opacity-60"
+                >
+                  {processing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  <span>{processing ? 'Updating…' : '📦 Mark as Ready to Ship'}</span>
+                </button>
+              )}
+              <button
+                onClick={() => setShowCancelConfirm(true)}
+                disabled={processing}
+                className="w-full bg-white border border-red-300 hover:bg-red-50 text-red-600 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+              >
+                Cancel Order
+              </button>
+            </div>
           )}
 
         </div>

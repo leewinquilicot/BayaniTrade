@@ -346,9 +346,24 @@ const OrderDetailsModal = ({ order, onClose, onConfirmReceipt, myRatings = {}, o
 
 /* ── Order Modal ── */
 const OrderModal = ({ item, onConfirm, onCancel }) => {
-  const [quantity, setQuantity] = useState(1);
+  const [rawQty, setRawQty] = useState('1');
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
+
+  const quantity = Math.max(1, Math.min(item.stock, Number(rawQty) || 1));
+  const total = item.price * quantity;
+
+  const decrement = () => setRawQty(q => String(Math.max(1, (Number(q) || 1) - 1)));
+  const increment = () => setRawQty(q => String(Math.min(item.stock, (Number(q) || 1) + 1)));
+
+  const handleInputChange = (e) => {
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    setRawQty(val);
+  };
+
+  const handleInputBlur = () => {
+    setRawQty(String(quantity));
+  };
 
   const handleConfirm = async () => {
     setPlacing(true);
@@ -362,23 +377,44 @@ const OrderModal = ({ item, onConfirm, onCancel }) => {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
         <h3 className="font-bold text-gray-900 mb-1">Place Order</h3>
-        <p className="text-gray-500 text-sm mb-5">{item.name} — by {item.farm}</p>
+        <p className="text-gray-500 text-sm mb-6">{item.name} — by {item.farm}</p>
 
-        <div className="flex items-center space-x-3 mb-2">
-          <label className="text-sm font-medium text-gray-700 w-28">Quantity (kg)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Quantity (kg)</label>
+
+        {/* Stepper row */}
+        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden mb-1">
+          <button
+            type="button"
+            onClick={decrement}
+            disabled={quantity <= 1}
+            className="w-14 h-14 flex items-center justify-center text-2xl font-bold text-gray-600 bg-gray-50 active:bg-gray-100 disabled:opacity-30 transition-colors select-none"
+          >
+            −
+          </button>
           <input
-            type="number"
-            min="1"
-            max={item.stock}
-            value={quantity}
-            onChange={e => setQuantity(Math.max(1, Number(e.target.value)))}
-            className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            type="text"
+            inputMode="numeric"
+            value={rawQty}
+            onChange={handleInputChange}
+            onBlur={handleInputBlur}
+            className="flex-1 h-14 text-center text-xl font-bold text-gray-900 focus:outline-none focus:bg-orange-50"
           />
+          <button
+            type="button"
+            onClick={increment}
+            disabled={quantity >= item.stock}
+            className="w-14 h-14 flex items-center justify-center text-2xl font-bold text-gray-600 bg-gray-50 active:bg-gray-100 disabled:opacity-30 transition-colors select-none"
+          >
+            +
+          </button>
         </div>
+        <p className="text-xs text-gray-400 text-center mb-5">{item.stock} kg available</p>
 
-        <p className="text-sm text-gray-500 mb-4">
-          Total: <span className="font-bold text-orange-600 text-base">₱{(item.price * quantity).toLocaleString()}</span>
-        </p>
+        {/* Total */}
+        <div className="bg-orange-50 rounded-xl px-4 py-3 flex justify-between items-center mb-5">
+          <span className="text-sm text-gray-600 font-medium">Total</span>
+          <span className="text-orange-600 font-bold text-xl">₱{total.toLocaleString()}</span>
+        </div>
 
         {error && (
           <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl">
@@ -390,14 +426,14 @@ const OrderModal = ({ item, onConfirm, onCancel }) => {
           <button
             onClick={handleConfirm}
             disabled={placing}
-            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 disabled:opacity-60"
+            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 disabled:opacity-60"
           >
             {placing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
             <span>{placing ? 'Placing…' : 'Confirm Order'}</span>
           </button>
           <button
             onClick={onCancel}
-            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 rounded-xl text-sm font-semibold transition-colors"
           >
             Cancel
           </button>
@@ -416,6 +452,7 @@ const RestaurantDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
   const [loading, setLoading] = useState(true);
   const [orderModal, setOrderModal] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [detailsModal, setDetailsModal] = useState(null);
   const [myRatings, setMyRatings] = useState({});   // product_id → rating value
 
@@ -488,7 +525,7 @@ const RestaurantDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
         const avg = avgMap[p.id];
         return {
           ...p,
-          farm: nameMap[p.farmer_id] || 'Unknown Farm',
+          farm: p.farmer_name || nameMap[p.farmer_id] || 'Unknown Farm',
           img: p.img_url || null,
           rating: avg ? avg.sum / avg.count : null,
           ratingCount: avg ? avg.count : 0,
@@ -514,23 +551,34 @@ const RestaurantDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
   const handlePlaceOrder = async (item, quantity) => {
     const amount = item.price * quantity;
 
-    // 1. Create the order
-    const { data: orderData, error } = await supabase
-      .from('orders')
-      .insert({
-        restaurant_id: currentUser.id,
-        farmer_id: item.farmer_id,
-        product_id: item.id,
-        items: `${item.name} (${quantity}kg)`,
-        amount,
-        status: 'Pending',
-      })
-      .select()
-      .single();
+    // 1. Create the order; embed names directly so farmer/restaurant portals never rely on cross-user profile lookups
+    const basePayload = {
+      restaurant_id: currentUser.id,
+      restaurant_name: currentUser.name || '',
+      farmer_id: item.farmer_id || null,
+      farmer_name: item.farm || '',
+      items: `${item.name} (${quantity}kg)`,
+      amount,
+      status: 'Pending',
+    };
+
+    let { data: orderData, error } = await supabase
+      .from('orders').insert({ ...basePayload, product_id: item.id }).select().single();
+
+    // Retry without columns that may not exist in the schema yet
+    if (error) {
+      const msg = error.message || '';
+      if (msg.includes('product_id') || msg.includes('restaurant_name') || msg.includes('farmer_name')) {
+        const { restaurant_name, farmer_name, ...minimalPayload } = basePayload;
+        const retry = await supabase.from('orders').insert(minimalPayload).select().single();
+        orderData = retry.data;
+        error = retry.error;
+      }
+    }
 
     if (error) {
       console.error('Order error:', error);
-      return { error: 'Could not place order. Please try again.' };
+      return { error: error.message || 'Could not place order. Please try again.' };
     }
 
     if (orderData) {
@@ -542,7 +590,7 @@ const RestaurantDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
         to_location: currentUser.name,
         items: `${item.name} (${quantity}kg)`,
         fee,
-        status: 'Pending',
+        status: 'Waiting',
       });
       if (deliveryError) console.error('Delivery creation error:', deliveryError);
 
@@ -582,18 +630,30 @@ const RestaurantDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
 
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="w-52 flex flex-col flex-shrink-0 h-screen" style={{ backgroundColor: '#7c2d12' }}>
-        <div className="flex items-center space-x-2 px-5 py-5 border-b border-orange-900">
-          <PeopleIcon />
-          <span className="text-white font-bold text-lg">BayaniTrade</span>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col flex-shrink-0 transform transition-transform duration-300 ease-in-out md:relative md:w-52 md:translate-x-0 md:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ backgroundColor: '#7c2d12' }}>
+        <div className="flex items-center justify-between px-5 py-5 border-b border-orange-900">
+          <div className="flex items-center space-x-2">
+            <PeopleIcon />
+            <span className="text-white font-bold text-lg">BayaniTrade</span>
+          </div>
+          <button onClick={() => setSidebarOpen(false)} className="md:hidden text-orange-300 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <nav className="flex-1 px-3 py-5 space-y-1">
           {NAV.map(({ id, label, Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => { setActiveTab(id); setSidebarOpen(false); }}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === id ? 'text-white' : 'text-orange-200 hover:text-white'
               }`}
@@ -624,16 +684,24 @@ const RestaurantDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
       </aside>
 
       {/* ── Main Content ── */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="bg-white border-b border-gray-200 px-8 py-5">
-          <h1 className="text-2xl font-bold text-gray-900">Restaurant Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Welcome back, {currentUser?.name || 'Restaurant'}!</p>
+      <main className="flex-1 overflow-y-auto w-full min-w-0">
+        <div className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 md:px-8 py-4 md:py-5">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden p-1 rounded-lg hover:bg-gray-100 text-gray-600 flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Welcome back, {currentUser?.name || 'Restaurant'}!</h1>
+            </div>
+          </div>
         </div>
 
-        <div className="px-8 py-6 space-y-6">
+        <div className="px-4 md:px-8 py-4 md:py-6 space-y-4 md:space-y-6">
 
-          {/* ── Stat Cards (always visible) ── */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* ── Stat Cards (dashboard only) ── */}
+          {activeTab === 'dashboard' && <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="rounded-2xl p-6 text-white" style={{ backgroundColor: '#f97316' }}>
               <div className="flex justify-between items-start mb-4">
                 <span className="text-orange-100 text-sm font-medium">Total Orders</span>
@@ -658,7 +726,7 @@ const RestaurantDashboard = ({ currentUser, onLogout, onUserUpdate }) => {
               <p className="text-4xl font-bold mb-1">{produce.length}</p>
               <p className="text-green-200 text-sm">From local farmers</p>
             </div>
-          </div>
+          </div>}
 
           {/* ── DASHBOARD TAB ── */}
           {activeTab === 'dashboard' && (
